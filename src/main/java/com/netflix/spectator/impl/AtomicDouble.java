@@ -124,4 +124,4 @@ public class AtomicDouble extends Number {
     @Override public double doubleValue() {
         return get();
     }
-}g
+}
