@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  */
 public final class GasStationImpl implements GasStation {
 
-    private final Map<GasType, Double> prices = new HashMap<>();
+    private final Map<GasType, Double> prices = new ConcurrentHashMap<>();
 
     /**
      * Since we have no access to <code>GasPump</code> class, we have a couple of choices to define a lock:
