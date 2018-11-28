@@ -8,7 +8,6 @@ import net.bigpoint.assessment.gasstation.exceptions.GasTooExpensiveException;
 import net.bigpoint.assessment.gasstation.exceptions.NotEnoughGasException;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -27,35 +26,35 @@ public final class GasStationImpl implements GasStation {
     private final Map<GasType, Double> prices = new ConcurrentHashMap<>();
 
     /**
-     * Since we have no access to <code>GasPump</code> class, we have a couple of choices to define a lock:
-     * 1) Use the object itself, which is not very vice decision since it blocks the other threads to access getters
-     * 2) Use a wrapper class to bring the synchronization in, or in this case we can simple use a map to keep the
-     *    related lock.
+     * Since we can not modify the <code>GasPump</code> class, we have a couple of choices to define a lock:
+     * 1) Use the object itself, which is not a very wise decision since it blocks the other threads to access getters methods too
+     * 2) Use a wrapper class to bring the synchronization in, or in this case we can simply use a map to keep the
+     *    related locks.
      *
-     * We go with solution 2 since it makes more throughput available
+     * We go with the solution number 2 since it makes more throughput possible
      */
     private final Map<GasPump, Lock> pumps = new ConcurrentHashMap<>();
 
     /**
-     * Since we have read and write from different threads, we can not use normal and volatile field
+     * Since we have read and write from different threads, we can not use normal or even volatile modifiers
      * But we can use the Atomic implementation
      */
     private final AtomicInteger sales = new AtomicInteger(0);
 
     /**
-     * Since we have read and write from different threads, we can not use normal and volatile field
+     * Since we have read and write from different threads, we can not use normal or even volatile modifiers
      * But we can use the Atomic implementation
      */
     private final AtomicInteger noGas = new AtomicInteger(0);
 
     /**
-     * Since we have read and write from different threads, we can not use normal and volatile field
+     * Since we have read and write from different threads, we can not use normal or even volatile modifiers
      * But we can use the Atomic implementation
      */
     private final AtomicInteger tooExpensive = new AtomicInteger(0);
 
     /**
-     * Since we have read and write from different threads, we can not use normal and volatile field
+     * Since we have read and write from different threads, we can not use normal or even volatile modifiers
      * But we can use the Atomic implementation
      */
     private AtomicDouble revenue = new AtomicDouble(0);
@@ -88,7 +87,7 @@ public final class GasStationImpl implements GasStation {
         }
 
         do {
-            // Get list of pumps that can provide gas
+            // Get the list of the pumps that can provide gas
             final List<Map.Entry<GasPump, Lock>> list = this.pumps.entrySet().stream()
                     .filter(p -> p.getKey().getGasType() == type)
                     .collect(Collectors.toList());
@@ -103,9 +102,6 @@ public final class GasStationImpl implements GasStation {
             // 1) They're all busy
             // 2) None of them has enough gas
             boolean areBusy = false;
-            CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
-                // Your code here executes after 5 seconds!
-            });
 
             for (Map.Entry<GasPump, Lock> e : list) {
                 // The current thread tries to obtain the lock, if it fails it means, it is
@@ -114,7 +110,7 @@ public final class GasStationImpl implements GasStation {
                 if (e.getValue().tryLock()) {
                     try {
                         // We are in a safe block, nothing else can access the gas pump, we can safely
-                        // check the amount and start the pumping
+                        // check the amount and start the action
                         if (e.getKey().getRemainingAmount() >= amountInLiters) {
                             e.getKey().pumpGas(amountInLiters);
                             sales.incrementAndGet();
@@ -126,22 +122,22 @@ public final class GasStationImpl implements GasStation {
                         e.getValue().unlock();
                     }
                 } else {
-                    // OK, there are some pump that they're busy, we need to wait and see
+                    // OK, there are some busy pumps, we need to wait and see
                     // if they have enough gas for the next round
                     areBusy = true;
                 }
             }
 
-            // We check all the pumps, All the pumps fails to provide gas, time for exception!
+            // We checked all the pumps, no gas, time for exception!
             if (!areBusy) {
                 this.noGas.incrementAndGet();
                 throw new NotEnoughGasException();
             }
 
             // Take a breath and ready for the next round!
-            // We may can use notify and await method, but since the consumers (customers) and
-            // producers (Gas pump) are not single, the procedure would be not be very clear and
-            // does not achieve much
+            // We may use notify and await method, but since the consumers (customers) and
+            // producers (Gas pump) are not single, the procedure would not be very straightforward
+            // and does not achieve much
             try {
                 Thread.sleep(50);
             } catch (InterruptedException e) {
